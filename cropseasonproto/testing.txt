@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Feed (Facebook-like)</title>
+
+  <style>
+    :root{
+      --bg:#f0f2f5;
+      --card:#fff;
+      --muted:#6b6f76;
+      --accent:#1877f2;
+    }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background:var(--bg);
+      display:flex;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .container{
+      width:720px;
+      max-width:95%;
+    }
+
+    /* create-post box */
+    .create {
+      background:var(--card);
+      padding:16px;
+      border-radius:12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      margin-bottom:16px;
+    }
+    .create textarea {
+      width:100%;
+      min-height:70px;
+      border-radius:8px;
+      padding:10px;
+      border:1px solid #e3e6ea;
+      resize:vertical;
+      font-size:15px;
+      box-sizing:border-box;
+    }
+    .create .controls {
+      display:flex;
+      gap:8px;
+      margin-top:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .create input[type="text"]{
+      width:60%;
+      border:1px solid #e3e6ea;
+      padding:8px;
+      border-radius:8px;
+      font-size:14px;
+    }
+    .btn {
+      background:var(--accent);
+      color:#fff;
+      border:none;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .btn.secondary{
+      background:#e9eefc;
+      color:var(--accent);
+    }
+
+    /* feed */
+    .feed {
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      max-height:72vh;
+      overflow-y:auto;
+      padding-right:6px;
+    }
+
+    /* post card */
+    .post {
+      background:var(--card);
+      border-radius:12px;
+      padding:12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      position:relative;
+    }
+    .post .meta {
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .avatar {
+      width:44px;
+      height:44px;
+      border-radius:50%;
+      background:#cfd6e6;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-weight:700;
+    }
+    .meta .name {
+      font-weight:700;
+    }
+    .meta .time {
+      color:var(--muted);
+      font-size:13px;
+      margin-left:8px;
+    }
+    .post .content {
+      margin-top:10px;
+      font-size:15px;
+    }
+    .post img {
+      width:100%;
+      margin-top:10px;
+      border-radius:8px;
+      object-fit:cover;
+      max-height:360px;
+    }
+
+    .actions{
+      display:flex;
+      gap:12px;
+      margin-top:10px;
+      align-items:center;
+    }
+    .action-btn {
+      background:transparent;
+      border:none;
+      cursor:pointer;
+      color:var(--muted);
+      padding:6px 8px;
+      border-radius:8px;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      font-weight:600;
+    }
+    .action-btn.liked{
+      color:var(--accent);
+    }
+
+    /* comments */
+    .comments {
+      margin-top:10px;
+      border-top:1px solid #f0f0f0;
+      padding-top:10px;
+    }
+    .comment {
+      font-size:14px;
+      margin-bottom:6px;
+    }
+    .comment strong { margin-right:6px; }
+    .comment-form {
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+    }
+    .comment-form input {
+      flex:1;
+      padding:8px;
+      border-radius:8px;
+      border:1px solid #e3e6ea;
+    }
+
+    /* small screens */
+    @media (max-width:480px){
+      .container { padding:0 8px; }
+      .create input[type="text"]{ width:100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="create" id="createBox">
+      <textarea id="postText" placeholder="What's on your mind?"></textarea>
+      <div class="controls">
+        <input id="postImage" type="text" placeholder="Optional image URL (paste link)">
+        <div style="display:flex; gap:8px;">
+          <button id="publishBtn" class="btn">Post</button>
+          <button id="clearBtn" class="btn secondary">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <script>
+    // Simple client-side feed with persistence (localStorage)
+    const STORAGE_KEY = 'simple_feed_posts_v1';
+
+    function nowISO(){ return new Date().toISOString(); }
+
+    function loadPosts(){
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      } catch(e){ return []; }
+    }
+
+    function savePosts(list){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    // sample name/avatar generator
+    function randomUser(){
+      return {
+        name: 'You',
+        avatarText: 'Y'
+      };
+    }
+
+    // format time as "YYYY-MM-DD HH:mm" (24-hour) or "5m ago". Keep it simple.
+    function formatTimestamp(iso){
+      const d = new Date(iso);
+      // simple human-friendly: if within 1 minute show seconds, within day show HH:MM, otherwise date
+      const diff = Date.now() - d.getTime();
+      if (diff < 60_000) return Math.floor(diff/1000) + 's';
+      if (diff < 3_600_000) return Math.floor(diff/60000) + 'm';
+      if (diff < 86_400_000) {
+        // show HH:MM (24-hour)
+        const hh = String(d.getHours()).padStart(2,'0');
+        const mm = String(d.getMinutes()).padStart(2,'0');
+        return `${hh}:${mm}`;
+      }
+      // show short date
+      return d.toLocaleDateString();
+    }
+
+    // create DOM for a post object
+    function createPostElement(post){
+      const el = document.createElement('div');
+      el.className = 'post';
+      el.dataset.id = post.id;
+
+      el.innerHTML = `
+        <div class="meta">
+          <div class="avatar">${post.user.avatarText}</div>
+          <div>
+            <div class="name">${escapeHtml(post.user.name)}</div>
+            <div class="time">${formatTimestamp(post.createdAt)}</div>
+          </div>
+        </div>
+        <div class="content">${escapeHtml(post.text)}</div>
+        ${post.image ? `<img src="${escapeHtml(post.image)}" alt="post image" onerror="this.style.display='none'">` : ''}
+        <div class="actions">
+          <button class="action-btn like-btn ${post.liked ? 'liked' : ''}">👍 <span class="like-count">${post.likes}</span></button>
+          <button class="action-btn comment-toggle">💬 ${post.comments.length}</button>
+          <button class="action-btn delete-btn" style="margin-left:auto;color:#ff4d4f">Delete</button>
+        </div>
+
+        <div class="comments" style="display:none">
+          <div class="comment-list">
+            ${post.comments.map(c => `<div class="comment"><strong>${escapeHtml(c.user)}</strong>${escapeHtml(c.text)}</div>`).join('')}
+          </div>
+          <div class="comment-form">
+            <input class="comment-input" placeholder="Write a comment...">
+            <button class="btn comment-send">Send</button>
+          </div>
+        </div>
+      `;
+
+      return el;
+    }
+
+    // sanitize very simply
+    function escapeHtml(s=''){
+      return String(s)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
+    }
+
+    // render feed (prepend newest first)
+    function renderFeed(){
+      const feed = document.getElementById('feed');
+      feed.innerHTML = '';
+      const posts = loadPosts();
+      // newest first
+      posts.slice().reverse().forEach(p => feed.appendChild(createPostElement(p)));
+    }
+
+    // post actions: like, comment, toggle, delete handled by event delegation
+    document.getElementById('feed').addEventListener('click', (e) => {
+      const postEl = e.target.closest('.post');
+      if (!postEl) return;
+      const id = postEl.dataset.id;
+      const posts = loadPosts();
+      const idx = posts.findIndex(x => x.id === id);
+      if (idx === -1) return;
+
+      if (e.target.closest('.like-btn')){
+        // toggle like
+        posts[idx].liked = !posts[idx].liked;
+        posts[idx].likes += posts[idx].liked ? 1 : -1;
+        savePosts(posts);
+        renderFeed();
+      } else if (e.target.closest('.comment-toggle')){
+        const commentsBox = postEl.querySelector('.comments');
+        commentsBox.style.display = commentsBox.style.display === 'none' ? 'block' : 'none';
+      } else if (e.target.closest('.delete-btn')){
+        if (!confirm('Delete this post?')) return;
+        posts.splice(idx,1);
+        savePosts(posts);
+        renderFeed();
+      } else if (e.target.closest('.comment-send')){
+        // send a comment inside that post element
+        const input = postEl.querySelector('.comment-input');
+        const text = input.value.trim();
+        if (!text) return;
+        posts[idx].comments.push({ user: 'You', text, createdAt: nowISO() });
+        savePosts(posts);
+        renderFeed();
+      }
+    });
+
+    // Publish new post
+    document.getElementById('publishBtn').addEventListener('click', () => {
+      const text = document.getElementById('postText').value.trim();
+      const img = document.getElementById('postImage').value.trim();
+      if (!text && !img) {
+        alert('Add text or an image URL first.');
+        return;
+      }
+
+      const posts = loadPosts();
+
+      const newPost = {
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+        user: randomUser(),
+        text,
+        image: img || '',
+        likes: 0,
+        liked: false,
+        comments: [],
+        createdAt: nowISO()
+      };
+
+      posts.push(newPost); // push to end; render uses reverse to show newest first
+      savePosts(posts);
+
+      // clear input
+      document.getElementById('postText').value = '';
+      document.getElementById('postImage').value = '';
+      renderFeed();
+
+      // scroll feed to top to see new post
+      const feed = document.getElementById('feed');
+      feed.scrollTop = 0;
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('postText').value = '';
+      document.getElementById('postImage').value = '';
+    });
+
+    // initial render
+    renderFeed();
+  </script>
+</body>
+</html>

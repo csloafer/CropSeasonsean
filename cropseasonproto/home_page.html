@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CropSeasonProto</title>
+      <link rel="stylesheet" href="style.css">
+      <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css">
+
+</head>
+<body>
+     <nav class="navbar">
+        <img src="pictures/logo.png" alt="Logo">
+    </nav>
+    <div class="sidebar">
+        <ul>
+            <li><a href=""><i class="fa fa-calendar" aria-hidden="true"></i>Calendar</a></li>
+            <li><a href=""><i class="fa fa-pagelines" aria-hidden="true"></i>Crops</a></li>
+            <li><a href=""><i class="fa fa-picture-o" aria-hidden="true"></i>Gallery</a></li>
+        </ul>
+        <a class="settings" href=""><i class="fa fa-cog fa-1x" aria-hidden="true"></i>Settings</a>
+    </div>
+    <div class="main">
+        <!-- date and time above feed-->
+        <div class="datetime">
+        <div class="date" id="date"></div>
+        <div class="time" id="time"></div>
+    </div>
+        <script src="date_time.js"></script>
+
+<!-- the feed-->
+    <div class="feed" id="feed"></div>
+    </div>
+<!--create post button and popup-->
+  <button id="fab" class="fab" aria-label="Create Post">+</button>
+
+
+  <div class="modal" id="createModal" aria-hidden="true">
+    <div class="modal-overlay" id="modalOverlay" tabindex="-1"></div>
+
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+
+      <div class="create" id="createBoxModal">
+        <h3 id="modalTitle" style="margin:0 0 8px 0">Create Post</h3>
+        <textarea id="postText" placeholder="What's on your mind?"></textarea>
+
+        <div class="controls">
+          <input id="postImage" type="text" placeholder="Optional image URL (paste link)">
+          <div style="display:flex; gap:8px;">
+            <button id="publishBtn" class="btn">Post</button>
+            <button id="clearBtn" class="btn secondary">Clear</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+<script src="feed.js"></script>
+    </div>
+</body>
+</html>
